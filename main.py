@@ -7,17 +7,18 @@ import datetime
 import re
 import pathlib
 import pandas as pd
+import os
 
 # Import Variables
 JamfSchoolUid = config.JamfSchoolUid
-JamfSchoolPwd = config.JamfSchoolPwd
+JAMF_SCHOOL_PWD = os.getenv('JAMF_SCHOOL_PWD')
 JamfSchoolEndpoint = config.JamfSchoolEndpoint
 CheckInDays = config.CheckInDays
 OutputCsvFilename = config.OutputCsvFilename
 AssignmentCsv = config.AssignmentCsv
 OrgInitials = config.OrgInitials
 NoteDefault = config.NoteDefault
-GeoApiKey = config.GeoApiKey
+GEO_API_KEY = os.getenv('GEO_API_KEY')
 DeviceValues = config.DeviceValues
 
 # Defime Geo Location Lookup Cache
@@ -234,7 +235,7 @@ def update_notes(udid, notes_json):
     input("Press enter to update notes...")
     target_url = 'https://' + JamfSchoolEndpoint + '/devices/' + udid + '/details'
     response = requests.post(target_url, notes_json_withkey,
-                             auth=HTTPBasicAuth(JamfSchoolUid, JamfSchoolPwd))
+                             auth=HTTPBasicAuth(JamfSchoolUid, JAMF_SCHOOL_PWD))
     if not response.status_code == 200:
         print("Error Updating: ", response)
         input("Press enter to continue...")
@@ -304,7 +305,7 @@ def get_ip_geolocation(ip_address):
     # Check if Cache has already looked up this IP
     if ip_address not in geo_ip_lookup_cache.keys():
         geo_location = (requests.get("http://api.ipstack.com/" + ip_address + "?access_key=" +
-                                     GeoApiKey + "&hostname=1")).json()
+                                     GEO_API_KEY + "&hostname=1")).json()
         # Exception for Known IP Addresses
         if ip_address == "72.214.117.2":
             geo_location["city"] = "New Orleans - EMCM"
@@ -420,7 +421,7 @@ def get_inventory():
 
     # Get Devices in Jamf
     devices = requests.get('https://' + JamfSchoolEndpoint + '/devices',
-                           auth=HTTPBasicAuth(JamfSchoolUid, JamfSchoolPwd))
+                           auth=HTTPBasicAuth(JamfSchoolUid, JAMF_SCHOOL_PWD))
     json_devices = devices.json()
 
     # Get Target OS Versions for Device Types
@@ -548,5 +549,5 @@ def get_inventory():
     df.to_csv(output_csv_file_path, index=False)
 
     print("")
-    print("Execution Complete5")
+    print("Execution Complete")
     return df.to_csv()
