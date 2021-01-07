@@ -25,4 +25,4 @@ pytest-cov==2.4.0
 pandas==1.2.0
 requests==2.25.1
 flatten-json==0.1.7
-werkzeug=1.0.1
+Werkzeug==1.0.1
