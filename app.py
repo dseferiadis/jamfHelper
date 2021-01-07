@@ -1,7 +1,7 @@
 from flask import Flask
 from flask import Response
 from werkzeug.exceptions import HTTPException
-import main
+import inventory
 
 app = Flask(__name__)
 
@@ -18,7 +18,7 @@ def default():
 @app.route('/getJamfInventory')
 def get_jamf_inventory():
     return Response(
-        main.get_inventory(),
+        inventory.get_inventory(),
         mimetype="text/csv",
         headers={"Content-disposition":
                  "attachment; filename=jamf_inventory.csv"})
