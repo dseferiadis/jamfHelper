@@ -548,5 +548,5 @@ def get_inventory():
     df.to_csv(output_csv_file_path, index=False)
 
     print("")
-    print("Execution Complete4")
+    print("Execution Complete5")
     return df.to_csv()
