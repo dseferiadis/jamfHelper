@@ -1,0 +1,34 @@
+# Provide the Jamf API Token from Jamf School
+#
+# The Username is your Jamf Network ID from Jamf School -> Devices -> Enroll Device(s) -> Number from MDM Server URL
+# The Password is your API Token from Jamf School -> Organization -> Settings -> API
+
+JamfSchoolUid = ""
+JamfSchoolPwd = ""
+JamfSchoolEndpoint = ""
+CheckInDays = 45
+OutputCsvFilename = ""
+AssignmentCsv = ""
+OrgInitials = ""
+OrgDomain = ""
+DefaultEmail = "systems@ellismarsaliscenter.org"
+NoteDefault = """{
+"LastInventoryDate":"01-01-2019",
+"LastInventoryUser":"admin@domain.com",
+"AssignedTo":"admin@domain.com",
+"PhysicalCondition":"Unknown",
+"PhysicalLocation":"Unknown",
+"Comments":""
+}"""
+GeoApiKey = ""
+DeviceValues = {
+    "iPad4,1": "",
+    "iPad6,11": "",
+    "iPad7,11": "",
+    "iPad7,5": "",
+    "MacBook10,1": "",
+    "MacBookPro14,1": "",
+    "MacBookPro16,1": "",
+    "MacPro7,1": "",
+    "Parallels16,1": "0"
+}
