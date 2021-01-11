@@ -550,4 +550,4 @@ def get_inventory():
 
     print("")
     print("Execution Complete")
-    return df.to_csv()
+    return df.to_csv(index=False)
