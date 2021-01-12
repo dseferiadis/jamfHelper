@@ -90,7 +90,6 @@ def get_target_os(jsondevices):
                 df_target_versions.loc[df_target_versions['model'] == modelid, 'os_major'] = os_major
                 df_target_versions.loc[df_target_versions['model'] == modelid, 'os_minor'] = os_minor
                 df_target_versions.loc[df_target_versions['model'] == modelid, 'os_patch'] = os_patch
-
     return df_target_versions
 
 
@@ -195,7 +194,7 @@ def naming_convention(name, isvirtual, modeltype):
         return result
 
 
-def get_user_email(firstname, lastname, usertype):
+def get_user_email(firstname, lastname, usertype, orgdomain):
     # Strip Leading and Trailing Whitespace
     firstname = firstname.strip()
     lastname = lastname.strip()
@@ -208,17 +207,14 @@ def get_user_email(firstname, lastname, usertype):
     firstname = re.sub(r'\W', '', firstname)
     lastname = re.sub(r'\W', '', lastname)
 
-    # Set Type to Default if Blank
-    if len(usertype) == 0:
-        usertype = "student"
-
-    email_suffix = "@" + usertype + "." + config.OrgDomain
+    # Concatenate Email Suffix
+    email_suffix = "@" + usertype + "." + orgdomain
 
     # Ensure names are at least one character
-    if len(firstname) > 0 and len(lastname) > 0:
+    if len(firstname) > 0 and len(lastname) > 0 and len(usertype) > 0 and len(orgdomain):
         return firstname + "." + lastname + email_suffix
     else:
-        return ""
+        return None
 
 
 # Update Notes Object
@@ -251,14 +247,13 @@ def is_json(my_json):
     return True
 
 
-# Validate User Assignments and Ensture they are email addresses
+# Validate user assignments and ensure they are email addresses
 def validate_email(email):
     regex = '^[a-z0-9]+[\\._]?[a-z0-9]+[@][\\w\\.]+[.]\\w{2,3}$'
     if re.search(regex, email):
         return email
     else:
         print("Invalid Email:", email)
-        input("Press Enter to Reset to Default...")
         return config.DefaultEmail
 
 
@@ -269,7 +264,6 @@ def get_days_since_last_iventory(note):
         if nkey == "LastInventoryDate":
             deltadayslastinventory = datetime.datetime.now() - datetime.datetime.strptime(nvalue, '%m-%d-%Y')
             return deltadayslastinventory.days
-
     # Return Error Value if we didn't find LastInventoryDate
     return -1
 
@@ -295,7 +289,6 @@ def get_sublocations(note):
             # Default Response if Patten is not matched
             result.append(nvalue)
             return result
-
     # Return Error Value if we didn't find LastInventoryDate
     return -1
 
@@ -311,7 +304,6 @@ def get_ip_geolocation(ip_address):
             geo_location["city"] = "New Orleans - EMCM"
             geo_location["zip"] = "70117"
         geo_ip_lookup_cache[ip_address] = geo_location
-
     # Always return content from cache
     return geo_ip_lookup_cache[ip_address]
 
@@ -378,7 +370,7 @@ def get_is_lost(is_virtual, days, ip_city, assigned_to):
     # If device has not reported to Jamf in more than CheckInDays
     if is_virtual:
         result["IsLost"] = "False"
-        result["IsLostReason"] = ""
+        result["IsLostReason"] = "Virtual devices are not tracked"
         return result
     elif days > days:
         result["IsLost"] = "True"
@@ -397,6 +389,7 @@ def get_is_lost(is_virtual, days, ip_city, assigned_to):
 
 
 def get_days_since_checkin_bucket(days):
+    # Report Summary Date Buckets for Simlified Reporting
     if days <= 1:
         return "0-1 days"
     elif days <= 7:
@@ -408,6 +401,7 @@ def get_days_since_checkin_bucket(days):
 
 
 def get_inventory_needed(days):
+    # Report if inventory is due for devices
     if days > CheckInDays:
         return True
     else:
@@ -550,4 +544,4 @@ def get_inventory():
 
     print("")
     print("Execution Complete")
-    return df.to_csv(index=False)
+    return df.to_csv()
