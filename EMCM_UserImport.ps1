@@ -3,8 +3,14 @@
 # and update accounts that already exist based on the email address as a
 # primary key that does not change
 
+# Flag to Manually Validate Change Actions - either 0 (No) or 1 (Yes)
+$confirmchanges = 1
+
+# Define days to wait to process deletion of account after account is not in import CSV
+$deletewaitdays = 30
+
 # Function to Validate CSV File Columns
-$inputFile = "C:\Scripts\EMCM_Import.csv"
+$inputFile = $PSScriptRoot + "\\" + "EMCM_Import.csv"
 function Import-ValidCSV
 {
         (
@@ -26,6 +32,29 @@ function Import-ValidCSV
         $csvImport
 }
 
+function NameToUserPrincipal($fn, $ln, $rl)
+{
+    #Strip all Non Word Characters and make lowercase from FirstName and LastName so we can create a consistent email format
+    $EmailFirstname = $fn
+    $EmailFirstname = $EmailFirstname -replace '[\W]', ''
+    $EmailFirstname = $EmailFirstname.ToLower()
+
+    $EmailLastname = $ln
+    $EmailLastname = $EmailLastname -replace '[\W]', ''
+    $EmailLastname = $EmailLastname.ToLower()
+
+    #Get User Role, Remove Non Word Characters and Make Lowercase
+    $UserRole = $rl
+    $UserRole = $UserRole -replace '[\W]', ''
+    $UserRole = $UserRole.ToLower()
+
+    #Format Email Address / UserPrincipalName
+    $UserPrincipalName = $EmailFirstname + "." + $EmailLastname + "@" + $UserRole + "." + "ellismarsaliscenter.org"
+    $UserPrincipalName = $UserPrincipalName.ToLower()
+
+    return $UserPrincipalName
+}
+
 # Define Required Columns
 [string[]]$requiredColumns = "FirstName","LastName","PreferredFirstName","PersonalEmail","MoblePhone","Role"
 Write-Host "Importing CSV of Target User List"
@@ -45,6 +74,9 @@ $Users = Import-Csv -Path $inputFile
 
 # Target User License AccountSkuId
 $TargetLicenseAccountSkuId = "ellismarsaliscenter:STANDARDPACK"
+
+# Prompt User If Running in Validation Mode
+if($confirmchanges -eq 1){ Read-Host -Prompt "Press any key to continue or CTRL-C to quit" }
 
 # Ensure MSOnline Module is Instaled (Run from PowerShell prompt started as administrator
 Write-Host "Attempting to Install MSOnline for PowerShell"
@@ -71,23 +103,7 @@ $UserNum = 0
 foreach($User in $Users){
     $UserNum++
 
-    #Strip all Non Word Characters and make lowercase from FirstName and LastName so we can create a consistent email format
-    $EmailFirstname = $User.FirstName
-    $EmailFirstname = $EmailFirstname -replace '[\W]', ''
-    $EmailFirstname = $EmailFirstname.ToLower()
-
-    $EmailLastname = $User.LastName
-    $EmailLastname = $EmailLastname -replace '[\W]', ''
-    $EmailLastname = $EmailLastname.ToLower()
-
-    #Get User Role, Remove Non Word Characters and Make Lowercase
-    $UserRole = $User.Role
-    $UserRole = $UserRole -replace '[\W]', ''
-    $UserRole = $UserRole.ToLower()
-
-    #Format Email Address / UserPrincipalName
-    $UserPrincipalName = $EmailFirstname + "." + $EmailLastname + "@" + $UserRole + "." + "ellismarsaliscenter.org"
-    $UserPrincipalName = $UserPrincipalName.ToLower()
+    $UserPrincipalName = NameToUserPrincipal $User.FirstName $User.LastName $User.Role
     Write-Host "$UserNum - $UserPrincipalName"
     
     #Clean First and Lastnames for Display Names
@@ -106,8 +122,12 @@ foreach($User in $Users){
     }
     $DisplayName = $PreferredFirstName + " " + $LastName
 
+    #Cache Role
+    $UserRole = $User.Role
+    $UserRole = $UserRole.ToLower()
+
     #Clean Mobile Phone
-    $MobilePhone = $User.Mobile
+    $MobilePhone = $User.MoblePhone
     $MobilePhone = $MobilePhone -replace '[\W]', ''
     $MobilePhone = "+1 " + $MobilePhone
 
@@ -130,6 +150,7 @@ foreach($User in $Users){
 
     #Create User if Needed
     if ($UserExists -eq 0) {
+        if($confirmchanges -eq 1){ Read-Host -Prompt "Press any key to continue or CTRL-C to quit" }
         Write-Host "     Creating New User"
         New-MsolUser -DisplayName $DisplayName -FirstName $FirstName -LastName $LastName -UserPrincipalName $UserPrincipalName -UsageLocation US -LicenseAssignment $TargetLicenseAccountSkuId
     } else {
@@ -137,13 +158,62 @@ foreach($User in $Users){
     }
 
     #Update User Attributes
-    Write-Host "     Updating User Attributes"
-    Set-MsolUser -UserPrincipalName $UserPrincipalName -DisplayName $DisplayName -Title $UserRole
-    Set-MsolUser -UserPrincipalName $UserPrincipalName -FirstName $FirstName
-    Set-MsolUser -UserPrincipalName $UserPrincipalName -LastName $LastName
-    Set-MsolUser -UserPrincipalName $UserPrincipalName -MobilePhone $MobilePhone
-    Set-MsolUser -UserPrincipalName $UserPrincipalName -AlternateEmailAddresses $PersonalEmailAddress
-    Set-MsolUser -UserPrincipalName $UserPrincipalName -UsageLocation "US"
+    Write-Host "     Checking User Attributes"
+    $aad_DisplayName = Get-MsolUser -UserPrincipalName $UserPrincipalName | Select-Object DisplayName
+    if ($aad_DisplayName.DisplayName -cne $DisplayName){
+        Write-Host "     Updating DisplayName from: " $aad_DisplayName.DisplayName " to: $DisplayName"
+        if($confirmchanges -eq 1){ Read-Host -Prompt "Press any key to continue or CTRL-C to quit" }
+        Set-MsolUser -UserPrincipalName $UserPrincipalName -DisplayName $DisplayName
+    }
+    $aad_Title = Get-MsolUser -UserPrincipalName $UserPrincipalName | Select-Object Title
+    if ($aad_Title.Title -cne $UserRole){
+        Write-Host "     Updating Title from: " $aad_Title.Title " to: $UserRole"
+        if($confirmchanges -eq 1){ Read-Host -Prompt "Press any key to continue or CTRL-C to quit" }
+        Set-MsolUser -UserPrincipalName $UserPrincipalName -Title $UserRole
+    }
+    $aad_FirstName = Get-MsolUser -UserPrincipalName $UserPrincipalName | Select-Object FirstName
+    if ($aad_FirstName.FirstName -cne $FirstName){
+        Write-Host "     Updating FirstName from: " $aad_FirstName.FirstName " to: $FirstName"
+        if($confirmchanges -eq 1){ Read-Host -Prompt "Press any key to continue or CTRL-C to quit" }
+        Set-MsolUser -UserPrincipalName $UserPrincipalName -FirstName $FirstName
+    }
+    $aad_LastName = Get-MsolUser -UserPrincipalName $UserPrincipalName | Select-Object LastName
+    if ($aad_LastName.LastName -cne $LastName){
+        Write-Host "     Updating LastName from: " $aad_LastName.LastName " to: $LastName"
+        if($confirmchanges -eq 1){ Read-Host -Prompt "Press any key to continue or CTRL-C to quit" }
+        Set-MsolUser -UserPrincipalName $UserPrincipalName -LastName $LastName
+    }
+    $aad_MobilePhone = Get-MsolUser -UserPrincipalName $UserPrincipalName | Select-Object MobilePhone
+    if ($aad_MobilePhone.MobilePhone -cne $MobilePhone){
+        Write-Host "     Updating MobilePhone from: " $aad_MobilePhone.MobilePhone " to: $MobilePhone"
+        if($confirmchanges -eq 1){ Read-Host -Prompt "Press any key to continue or CTRL-C to quit" }
+        Set-MsolUser -UserPrincipalName $UserPrincipalName -MobilePhone $MobilePhone
+    }
+    $aad_AlternateEmailAddresses = Get-MsolUser -UserPrincipalName $UserPrincipalName | Select-Object AlternateEmailAddresses
+    if ($aad_AlternateEmailAddresses.AlternateEmailAddresses -cne $PersonalEmailAddress){
+        Write-Host "     Updating AlternateEmailAddresses from: " $aad_AlternateEmailAddresses.AlternateEmailAddresses.value " to: $PersonalEmailAddress" 
+        if($confirmchanges -eq 1){ Read-Host -Prompt "Press any key to continue or CTRL-C to quit" }
+        Set-MsolUser -UserPrincipalName $UserPrincipalName -AlternateEmailAddresses $PersonalEmailAddress
+    }
+    $aad_UsageLocation = Get-MsolUser -UserPrincipalName $UserPrincipalName | Select-Object UsageLocation
+    if ($aad_UsageLocation.UsageLocation -cne "US"){
+        Write-Host "     Updating UsageLocation from: " $aad_UsageLocation.UsageLocation " to: US"
+        if($confirmchanges -eq 1){ Read-Host -Prompt "Press any key to continue or CTRL-C to quit" }
+        Set-MsolUser -UserPrincipalName $UserPrincipalName -UsageLocation "US"
+    }
+    $aad_BlockCredential = Get-MsolUser -UserPrincipalName $UserPrincipalName | Select-Object BlockCredential
+    if ($aad_BlockCredential.BlockCredential -ne $false){
+        Write-Host "     Updating BlockCredential from: " $aad_BlockCredential.BlockCredential " to: $false"
+        if($confirmchanges -eq 1){ Read-Host -Prompt "Press any key to continue or CTRL-C to quit" }
+        Set-MsolUser -UserPrincipalName $UserPrincipalName -BlockCredential $false
+    }
+    # If user is an active user reset the City field to blank, which is used as a soft delete placeholder
+    $aad_City = Get-MsolUser -UserPrincipalName $UserPrincipalName | Select-Object City
+    if ($aad_City.City -cne $null){
+        Write-Host "     Updating City from: " $aad_City.City " to: "
+        if($confirmchanges -eq 1){ Read-Host -Prompt "Press any key to continue or CTRL-C to quit" }
+        Set-MsolUser -UserPrincipalName $UserPrincipalName -City $null
+    }
 
     #Get User License Assignments
     $UserLicenseQty = 0
@@ -157,6 +227,7 @@ foreach($User in $Users){
 
     #Assign License to User if Needed
     if ($UserLicenseQty -eq 0){
+        if($confirmchanges -eq 1){ Read-Host -Prompt "Press any key to continue or CTRL-C to quit" }
         Write-Host "     Assigning User License"
         Set-MsolUserLicense -UserPrincipalName $UserPrincipalName -AddLicenses "ellismarsaliscenter:STANDARDPACK"
     } else {
@@ -186,6 +257,7 @@ foreach($User in $Users){
     #If User is Not Already in Target Administrative Unit then add them
     if ($UserExists -eq 0){
         Write-Host "     Assigning Administrative Unit Member"
+        if($confirmchanges -eq 1){ Read-Host -Prompt "Press any key to continue or CTRL-C to quit" }
         Add-AzureADMSAdministrativeUnitMember -Id $administrativeunitObj.Id -RefObjectId $UserObj.ObjectId
     } else {
         Write-Host "     User Already Administrative Unit Member"
@@ -194,14 +266,57 @@ foreach($User in $Users){
 
 Write-Host ""
 Write-Host ""
-Write-Host "Exporting Student and Teachers in Office 365"
+Write-Host "Processing Student and Teacher Accounts for Deletion"
+$aadusers = Get-MsolUser | Where-Object { $_.isLicensed -eq "True"} | Where-Object {($_.ProxyAddresses -like '*@student.ellismarsaliscenter.org') -or ($_.ProxyAddresses -like '*@teacher.ellismarsaliscenter.org')} | select-object  UserPrincipalName
+foreach($aaduser in $aadusers){
+    $aaduser_incsv = 0
+    $aadupn = $aaduser.UserPrincipalName
 
+    foreach($User in $Users){
+        $UserPrincipalName = NameToUserPrincipal $User.FirstName $User.LastName $User.Role
+        if($aadupn -eq $UserPrincipalName){
+            $aaduser_incsv = $aaduser_incsv + 1
+            break
+        }
+    }
+
+    # If Azure AD User was not found in Import CSV, Block account and flag for deletion
+    if($aaduser_incsv -eq 0){
+        Write-Host "$aadupn was not found in Import CSV - Processing for Offboard"
+        $aad_BlockCredential = Get-MsolUser -UserPrincipalName $aadupn | Select-Object BlockCredential
+        if ($aad_BlockCredential.BlockCredential -ne $true){
+            Write-Host "   Updating BlockCredential from: " $aad_BlockCredential.BlockCredential " to: $true"
+            if($confirmchanges -eq 1){ Read-Host -Prompt "Press any key to continue or CTRL-C to quit" }
+            Set-MsolUser -UserPrincipalName $UserPrincipalName -BlockCredential $true
+        }
+        
+        $aad_City = Get-MsolUser -UserPrincipalName $aadupn | Select-Object City
+        if ($aad_City.City -ne $null){
+            $current = Get-Date
+            if($current -gt $aad_City.City){
+                Write-Host "Processing deletion of $aadupn"
+                if($confirmchanges -eq 1){ Read-Host -Prompt "Press any key to continue or CTRL-C to quit" }
+                Remove-MsolUser -UserPrincipalName $aadupn -Force
+            } else {
+                Write-Host "   Scheduled for deletion on " $aad_City.City
+            }
+        } else {
+            $deletedate = (Get-Date).adddays(30)
+            Write-Host "   Flagging Account for Deletion in $deletedate days (Using City Field)"
+            if($confirmchanges -eq 1){ Read-Host -Prompt "Press any key to continue or CTRL-C to quit" }
+            Set-MsolUser -UserPrincipalName $aadupn -City $deletedate
+        }
+    }
+}
+
+Write-Host ""
+Write-Host ""
+Write-Host "Exporting Student and Teachers in Office 365"
 Get-MsolUser | Where-Object { $_.isLicensed -eq "True"} | Where-Object {($_.ProxyAddresses -like '*@student.ellismarsaliscenter.org') -or ($_.ProxyAddresses -like '*@teacher.ellismarsaliscenter.org')} | select-object  UserPrincipalName, Title, DisplayName, FirstName, LastName, @{Name=“AlternateEmailAddresses”;Expression={$_.AlternateEmailAddresses}}, MobilePhone, @{Name=“Licenses”;Expression={$_.licenses.AccountSku.Skupartnumber}}, WhenCreated | Export-Csv $Office365StudentTeacherUsers
 
 Write-Host ""
 Write-Host ""
 Write-Host "Exporting All Licensed Users in Office 365"
-
 Get-MsolUser | Where-Object { $_.isLicensed -eq "True"} | select-object  UserPrincipalName, Title, DisplayName, FirstName, LastName, @{Name=“AlternateEmailAddresses”;Expression={$_.AlternateEmailAddresses}}, MobilePhone, @{Name=“Licenses”;Expression={$_.licenses.AccountSku.Skupartnumber}}, WhenCreated | Export-Csv $Office365AllUsers
 
 Write-Host ""

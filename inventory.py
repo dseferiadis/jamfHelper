@@ -249,7 +249,7 @@ def is_json(my_json):
 
 # Validate user assignments and ensure they are email addresses
 def validate_email(email):
-    regex = '^[a-z0-9]+[\\._]?[a-z0-9]+[@][\\w\\.]+[.]\\w{2,3}$'
+    regex = r'^[\S]+[\._]?[\S]+[@][\w\.]+[.]\w{2,3}$'
     if re.search(regex, email):
         return email
     else:
@@ -544,4 +544,4 @@ def get_inventory():
 
     print("")
     print("Execution Complete")
-    return df.to_csv()
+    return df.to_csv(index=False)
