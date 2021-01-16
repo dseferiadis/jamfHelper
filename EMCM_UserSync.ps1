@@ -2,7 +2,7 @@
 # and create users that don't exist in both Azure AD and Canvas
 # or update users whose attributes have changed, and delete users 
 # no longer in the import list with a soft delete wait period where
-# accounts will be disabled for X days until actual deletion
+# accounts will be disabled for X days until deletion
 
 # Source CSV File
 $inputFile = $PSScriptRoot + "\" + "EMCM_Import.csv"
