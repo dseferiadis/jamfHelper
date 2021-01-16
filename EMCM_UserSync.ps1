@@ -27,7 +27,7 @@ function ExistsInCanvas($CanvasUsername){
     $headers = @{"Authorization"="Bearer "+$accessToken}  # build access token header
     $canvasUserUrl = "$canvasDomain/accounts/self/users?search_term=$CanvasUsername"
     
-    Write-Host "Attempting API Call to:" $canvasUserUrl
+    # Write-Host "Attempting API Call to:" $canvasUserUrl
     try{
         $response = Invoke-RestMethod -Method GET -uri $canvasUserUrl -header $headers
         if($response.login_id -eq $CanvasUsername){
@@ -47,7 +47,7 @@ function CreateInCanvas($CanvasUsername){
     $headers = @{"Authorization"="Bearer "+$accessToken}  # build access token header
     $canvasUserUrl = "$canvasDomain/accounts/self/users?search_term=$CanvasUsername"
     
-    Write-Host "Attempting API Call to:" $canvasUserUrl
+    # Write-Host "Attempting API Call to:" $canvasUserUrl
     try{
         $response = Invoke-RestMethod -Method GET -uri $canvasUserUrl -header $headers
         if($response.login_id -eq $CanvasUsername){
@@ -187,7 +187,7 @@ function CheckPhoneSyntax($inputFile)
 
 # Define Required Columns
 [string[]]$requiredColumns = "FirstName","LastName","PreferredFirstName","PersonalEmail","MoblePhone","Role"
-Write-Host "Importing CSV of Target User List"
+Write-Host "Importing CSV of Target User List:" $inputFile
 $error.clear()
 try { 
     $testCsv = Import-ValidCsv $inputFile $requiredColumns
@@ -415,9 +415,9 @@ foreach($User in $Users){
     if(ExistsInCanvas $UserPrincipalName){
         Write-Host "     User Anchor Exists in Canvas"
     } else {
-        Write-Host "     Creating User Anchor in Canvas"
-        if($confirmchanges -eq 1){ Read-Host -Prompt "Press any key to continue or CTRL-C to quit" }
-        CreateInCanvas $UserPrincipalName
+        Write-Host "     Plaseholder to Creating User Anchor in Canvas"
+        # if($confirmchanges -eq 1){ Read-Host -Prompt "Press any key to continue or CTRL-C to quit" }
+        # CreateInCanvas $UserPrincipalName
     }
 }
 
@@ -429,9 +429,9 @@ foreach($aaduser in $aadusers){
     $aaduser_incsv = 0
     $aadupn = $aaduser.UserPrincipalName
 
-    foreach($User in $Users){
-        $UserPrincipalName = NameToUserPrincipal $User.FirstName $User.LastName $User.Role
-        if($aadupn -eq $UserPrincipalName){
+    foreach($DelUser in $Users){
+        $DelUserPrincipalName = NameToUserPrincipal $DelUser.FirstName $DelUser.LastName $DelUser.Role
+        if($aadupn -eq $DelUserPrincipalName){
             $aaduser_incsv = $aaduser_incsv + 1
             break
         }
@@ -444,7 +444,7 @@ foreach($aaduser in $aadusers){
         if ($aad_BlockCredential.BlockCredential -ne $true){
             Write-Host "   Updating BlockCredential from: " $aad_BlockCredential.BlockCredential " to: $true"
             if($confirmchanges -eq 1){ Read-Host -Prompt "Press any key to continue or CTRL-C to quit" }
-            Set-MsolUser -UserPrincipalName $UserPrincipalName -BlockCredential $true
+            Set-MsolUser -UserPrincipalName $aadupn -BlockCredential $true
         }
         
         $aad_City = Get-MsolUser -UserPrincipalName $aadupn | Select-Object City
