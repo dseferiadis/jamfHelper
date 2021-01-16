@@ -2,7 +2,7 @@
 # and create users that don't exist in both Azure AD and Canvas
 # or update users whose attributes have changed, and delete users 
 # no longer in the import list with a soft delete wait period where
-# accounts will be disabled for X days until actual deletion
+# accounts will be disabled for X days until deletion
 
 # Source CSV File
 $inputFile = $PSScriptRoot + "\" + "EMCM_Import.csv"
@@ -312,48 +312,64 @@ foreach($User in $Users){
         Write-Host "     Updating DisplayName from: " $aad_DisplayName.DisplayName " to: $DisplayName"
         if($confirmchanges -eq 1){ Read-Host -Prompt "Press any key to continue or CTRL-C to quit" }
         Set-MsolUser -UserPrincipalName $UserPrincipalName -DisplayName $DisplayName
+    } else {
+        # Write-Host "        Attributes Match AAD: " $aad_DisplayName.DisplayName " CSV: $DisplayName" 
     }
     $aad_Title = Get-MsolUser -UserPrincipalName $UserPrincipalName | Select-Object Title
     if ($aad_Title.Title -cne $UserRole){
         Write-Host "     Updating Title from: " $aad_Title.Title " to: $UserRole"
         if($confirmchanges -eq 1){ Read-Host -Prompt "Press any key to continue or CTRL-C to quit" }
         Set-MsolUser -UserPrincipalName $UserPrincipalName -Title $UserRole
+    } else {
+        # Write-Host "        Attributes Match AAD: " $aad_Title.Title " CSV: $UserRole" 
     }
     $aad_FirstName = Get-MsolUser -UserPrincipalName $UserPrincipalName | Select-Object FirstName
     if ($aad_FirstName.FirstName -cne $FirstName){
         Write-Host "     Updating FirstName from: " $aad_FirstName.FirstName " to: $FirstName"
         if($confirmchanges -eq 1){ Read-Host -Prompt "Press any key to continue or CTRL-C to quit" }
         Set-MsolUser -UserPrincipalName $UserPrincipalName -FirstName $FirstName
+    } else {
+        # Write-Host "        Attributes Match AAD: " $aad_FirstName.FirstName " CSV: $FirstName" 
     }
     $aad_LastName = Get-MsolUser -UserPrincipalName $UserPrincipalName | Select-Object LastName
     if ($aad_LastName.LastName -cne $LastName){
         Write-Host "     Updating LastName from: " $aad_LastName.LastName " to: $LastName"
         if($confirmchanges -eq 1){ Read-Host -Prompt "Press any key to continue or CTRL-C to quit" }
         Set-MsolUser -UserPrincipalName $UserPrincipalName -LastName $LastName
+    } else {
+        # Write-Host "        Attributes Match AAD: " $aad_LastName.LastName " CSV: $LastName" 
     }
     $aad_MobilePhone = Get-MsolUser -UserPrincipalName $UserPrincipalName | Select-Object MobilePhone
     if ($aad_MobilePhone.MobilePhone -cne $MobilePhone){
         Write-Host "     Updating MobilePhone from: " $aad_MobilePhone.MobilePhone " to: $MobilePhone"
         if($confirmchanges -eq 1){ Read-Host -Prompt "Press any key to continue or CTRL-C to quit" }
         Set-MsolUser -UserPrincipalName $UserPrincipalName -MobilePhone $MobilePhone
+    } else {
+        # Write-Host "        Attributes Match AAD: " $aad_MobilePhone.MobilePhone " CSV: $MobilePhone" 
     }
     $aad_AlternateEmailAddresses = Get-MsolUser -UserPrincipalName $UserPrincipalName | Select-Object AlternateEmailAddresses
-    if ($aad_AlternateEmailAddresses.AlternateEmailAddresses -cne $PersonalEmailAddress){
-        Write-Host "     Updating AlternateEmailAddresses from: " $aad_AlternateEmailAddresses.AlternateEmailAddresses.value " to: $PersonalEmailAddress" 
+    if ($PersonalEmailAddress.length -ne $aad_AlternateEmailAddresses[0].AlternateEmailAddresses.length -or $aad_AlternateEmailAddresses[0].AlternateEmailAddresses -cne $PersonalEmailAddress){
+        Write-Host "     Updating AlternateEmailAddresses from: " $aad_AlternateEmailAddresses[0].AlternateEmailAddresses " to: $PersonalEmailAddress" 
         if($confirmchanges -eq 1){ Read-Host -Prompt "Press any key to continue or CTRL-C to quit" }
         Set-MsolUser -UserPrincipalName $UserPrincipalName -AlternateEmailAddresses $PersonalEmailAddress
+    } else {
+        # Write-Host "        Attributes Match AAD: " $aad_AlternateEmailAddresses[0].AlternateEmailAddresses " CSV: $PersonalEmailAddress" 
     }
     $aad_UsageLocation = Get-MsolUser -UserPrincipalName $UserPrincipalName | Select-Object UsageLocation
     if ($aad_UsageLocation.UsageLocation -cne "US"){
         Write-Host "     Updating UsageLocation from: " $aad_UsageLocation.UsageLocation " to: US"
         if($confirmchanges -eq 1){ Read-Host -Prompt "Press any key to continue or CTRL-C to quit" }
         Set-MsolUser -UserPrincipalName $UserPrincipalName -UsageLocation "US"
+    } else {
+        # Write-Host "        Attributes Match AAD: " $aad_UsageLocation.UsageLocation " CSV: US" 
     }
     $aad_BlockCredential = Get-MsolUser -UserPrincipalName $UserPrincipalName | Select-Object BlockCredential
     if ($aad_BlockCredential.BlockCredential -ne $false){
         Write-Host "     Updating BlockCredential from: " $aad_BlockCredential.BlockCredential " to: $false"
         if($confirmchanges -eq 1){ Read-Host -Prompt "Press any key to continue or CTRL-C to quit" }
         Set-MsolUser -UserPrincipalName $UserPrincipalName -BlockCredential $false
+    } else {
+        # Write-Host "        Attributes Match AAD: " $aad_BlockCredential.BlockCredential " CSV: false" 
     }
     # If user is an active user reset the City field to blank, which is used as a soft delete placeholder
     $aad_City = Get-MsolUser -UserPrincipalName $UserPrincipalName | Select-Object City
@@ -361,6 +377,8 @@ foreach($User in $Users){
         Write-Host "     Updating City from: " $aad_City.City " to: "
         if($confirmchanges -eq 1){ Read-Host -Prompt "Press any key to continue or CTRL-C to quit" }
         Set-MsolUser -UserPrincipalName $UserPrincipalName -City $null
+    } else {
+        # Write-Host "        Attributes Match AAD: " $aad_City.City " CSV: " 
     }
 
     #Get User License Assignments
