@@ -27,4 +27,4 @@ requests==2.25.1
 requests-oauthlib==1.0.0
 msal==1.8.0
 flatten-json==0.1.7
-pytz==2013b
+pytz==2017.3
