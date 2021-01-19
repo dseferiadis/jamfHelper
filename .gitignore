@@ -3,7 +3,6 @@
 /.idea/
 /jamf_inventory.csv
 /azure_ad_usage.csv
-/jamf_inventory.csv
 /JamfPivot.xlsx
 /CanvasApiKey.txt
 /.cache
