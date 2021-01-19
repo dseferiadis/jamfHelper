@@ -3,6 +3,7 @@ from flask import Response
 from werkzeug.exceptions import HTTPException
 import inventory
 import azure
+import pandas as pd
 
 app = Flask(__name__)
 
@@ -34,14 +35,13 @@ def get_jamf_inventory_html():
     )
 
 
-# @app.route('/lostInventory/html')
-# def get_lost_inventory_html():
-    # inv_df = pd.DataFrame(inventory.get_inventory('pd'))
-    # inv_df = inv_df[['IsLost', 'IsLostReason', 'name', 'model.name', 'IP_region_name', 'IP_city',
-    #                 'DaysSinceCheckinBucket', 'DeviceValue']]
-    # inv_df = inv_df[inv_df['IsLost'] == 'True']
-    # return Response(inv_df.to_html()
-    #                )
+@app.route('/lostInventory/html')
+def get_lost_inventory_html():
+    inv_df = pd.DataFrame(inventory.get_inventory('pd'))
+    inv_df = inv_df[['IsLost', 'IsLostReason', 'name', 'model.name', 'IP_region_name', 'IP_city',
+                    'DaysSinceCheckinBucket', 'DeviceValue']]
+    inv_df = inv_df[inv_df['IsLost'] == 'True']
+    return Response(inv_df.to_html())
 
 
 @app.route('/getAzureAccountUsage/csv')
