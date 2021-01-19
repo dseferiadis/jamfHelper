@@ -309,8 +309,7 @@ def get_ip_geolocation(ip_address):
 
 
 # Validate JSON Fields Match Template
-def notes_is_valid(udid, serial, notedefault, note):
-    # Validated JSON in Notes Field and returns True if notes is valid and no updates required
+def validate_notes(udid, serial, notedefault, note):
     note_json = json.loads(note)
     notedefault_json = json.loads(notedefault)
     clean_dict = {}
@@ -347,9 +346,6 @@ def notes_is_valid(udid, serial, notedefault, note):
         print("Before :", note_json)
         print("After  :", clean_dict)
         update_notes(udid, clean_dict)
-        return False
-    else:
-        return True
 
 
 # Validate Device Name is Unique
@@ -413,10 +409,9 @@ def get_inventory_needed(days):
 
 
 # Start Main Logic
-def get_inventory(output_format):
+def get_inventory():
     print("Starting Jamf Management")
     print("Current Working Directory", pathlib.Path().absolute())
-    refresh_needed = False
 
     # Get Devices in Jamf
     devices = requests.get('https://' + JamfSchoolEndpoint + '/devices',
@@ -455,6 +450,7 @@ def get_inventory(output_format):
         days_since_checkin = delta.days
 
         # Check Notes Field to Determine Status
+        # TODO anytime updates are required we need to tell the final loop to reprocess for output
         update_required = 0
         if "notes" in row:
             notes_json = row["notes"]
@@ -467,15 +463,12 @@ def get_inventory(output_format):
             elif len(notes_json) > 0:
                 # If JSON content is not valid - attempt to correct
                 if not is_json(notes_json):
-                    return row["name"] + " notes is is not a valid JSON Object"
+                    print("   Notes is is not a valid JSON Object")
+                    input("Press Enter to continue...")
                 else:
-                    if notes_is_valid(row["UDID"], row["serialNumber"], NoteDefault, notes_json) is False:
-                        refresh_needed = True
-                        continue
+                    validate_notes(row["UDID"], row["serialNumber"], NoteDefault, notes_json)
             if update_required > 0:
                 update_notes(row["UDID"], notes_json)
-                refresh_needed = True
-                continue
 
         # Check if Naming Convention Matches
         naming_standard = naming_convention(row["name"], is_virtual, row["model"]["type"])
@@ -527,21 +520,16 @@ def get_inventory(output_format):
         df_metadata_row = pd.DataFrame(metadata_row, columns=df_column_names)
         df_metadata = df_metadata.append(df_metadata_row)
 
-    if refresh_needed:
-        print("Updates to JSON made during this cycle, must refresh again before exporting results")
-        return get_inventory(output_format)
-
     # Remove Secondary JSON Encapsulated of Notes
     rownum = -1
-    devicename = ""
     try:
         for row in json_devices["devices"]:
-            devicename = row["name"]
             rownum = rownum + 1
             if "notes" in row:
                 json_devices["devices"][rownum]["notes"] = json.loads(row["notes"])
     except ValueError as e:
-        return "Removing Secondary JSON Encapsulation Failed on" + devicename + " (" + str(e) + ")"
+        print("Removing Secondary JSON Encapsulation Failed!")
+        print("   ", e)
 
     # Flatten JSON to Prepare for Output to CSV
     df = pd.json_normalize(json_devices["devices"])
@@ -549,13 +537,11 @@ def get_inventory(output_format):
     # Join JAMF Data with Derived Metadata
     df = pd.merge(df, df_metadata, how='outer', left_on='name', right_on='name')
 
+    # Write Results to CSV
+    working_dir = str(pathlib.Path().absolute())
+    output_csv_file_path = working_dir + "/" + OutputCsvFilename
+    df.to_csv(output_csv_file_path, index=False)
+
     print("")
     print("Execution Complete")
-    if output_format == "csv":
-        return df.to_csv(index=False)
-    elif output_format == "html":
-        return df.to_html()
-    elif output_format == "pd":
-        return df
-    else:
-        return df
+    return df.to_csv(index=False)

@@ -2,7 +2,6 @@ import requests
 import json
 import pandas as pd
 import datetime
-import pytz
 import os
 
 AZURE_TENANT = "ellismarsaliscenter.org"
@@ -94,7 +93,8 @@ def get_azure_account_usage(output_format):
                 if pd.isnull(row['signInActivity']['lastSignInDateTime']) is not True:
                     lastsignindatetime = pd.to_datetime(row['signInActivity']['lastSignInDateTime'])
                     current_time = datetime.datetime.utcnow()
-                    current_time = current_time.replace(tzinfo=pytz.utc)
+                    # TODO Commented for Troubleshooting
+                    # current_time = current_time.replace(tzinfo=pytz.utc)
                     deltadays = current_time - lastsignindatetime
                     days_since_login = deltadays.days
                     print("   Last Login " + str(days_since_login) + " day(s) ago at " + str(lastsignindatetime))
