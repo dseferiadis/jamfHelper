@@ -1,4 +1,8 @@
+/.cache/
 /venv/
 /.idea/
 /jamf_inventory.csv
+/azure_ad_usage.csv
+/JamfPivot.xlsx
 /CanvasApiKey.txt
+/.cache
