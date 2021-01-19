@@ -24,4 +24,7 @@ pytest-cov==2.4.0
 # Libraries
 pandas==1.2.0
 requests==2.25.1
+requests-oauthlib==1.0.0
+msal==1.8.0
 flatten-json==0.1.7
+pytz==2020.5
