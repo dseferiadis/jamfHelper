@@ -2,6 +2,8 @@ from flask import Flask
 from flask import Response
 from werkzeug.exceptions import HTTPException
 import inventory
+import azure
+import pandas as pd
 
 app = Flask(__name__)
 
@@ -10,18 +12,53 @@ app = Flask(__name__)
 def default():
     return '''
         <html><body>
-        <a href="/getJamfInventory">Download Jamf Inventory</a>
+        Jamf Inventory <a href="/getJamfInventory/csv">CSV</a> <a href="/getJamfInventory/html">HTML</a><br>
+        Lost Inventory <a href="/lostInventory/html">HTML</a><br>
+        Azure Account Usage <a href="/getAzureAccountUsage/csv">CSV</a> <a href="/getAzureAccountUsage/html">HTML</a>
         </body></html>
         '''
 
 
-@app.route('/getJamfInventory')
-def get_jamf_inventory():
+@app.route('/getJamfInventory/csv')
+def get_jamf_inventory_csv():
     return Response(
-        inventory.get_inventory(),
+        inventory.get_inventory('csv'),
         mimetype="text/csv",
-        headers={"Content-disposition":
-                 "attachment; filename=jamf_inventory.csv"})
+        headers={"Content-disposition": "attachment; filename=jamf_inventory.csv"}
+    )
+
+
+@app.route('/getJamfInventory/html')
+def get_jamf_inventory_html():
+    return Response(
+        inventory.get_inventory('html')
+    )
+
+
+@app.route('/lostInventory/html')
+def get_lost_inventory_html():
+    inv_df = pd.DataFrame(inventory.get_inventory('pd'))
+    inv_df = inv_df[['IsLost', 'IsLostReason', 'name', 'model.name', 'IP_region_name', 'IP_city',
+                     'DaysSinceCheckinBucket', 'DeviceValue']]
+    inv_df = inv_df[inv_df['IsLost'] == 'True']
+    return Response(inv_df.to_html()
+                    )
+
+
+@app.route('/getAzureAccountUsage/csv')
+def get_azure_account_usage_csv():
+    return Response(
+        azure.get_azure_account_usage('csv'),
+        mimetype="text/csv",
+        headers={"Content-disposition": "attachment; filename=jamf_inventory.csv"}
+    )
+
+
+@app.route('/getAzureAccountUsage/html')
+def get_azure_account_usage_html():
+    return Response(
+        azure.get_azure_account_usage('html')
+    )
 
 
 @app.errorhandler(Exception)
