@@ -3,7 +3,6 @@ import json
 import pandas as pd
 import datetime
 import pytz
-import pathlib
 import os
 
 AZURE_TENANT = "ellismarsaliscenter.org"
@@ -40,7 +39,7 @@ def get_azure_users(token, pagesize):
     return users_df
 
 
-def get_azure_user_signins(token, pagesize, upn):
+def get_azure_user_signins(token, upn):
     signins_url = "https://graph.microsoft.com/v1.0/auditLogs/signIns"
     headers = {'Authorization': 'Bearer ' + token}
     filter_text = "userPrincipalName eq '" + upn + "'"
@@ -49,7 +48,9 @@ def get_azure_user_signins(token, pagesize, upn):
     sign_in_events = 0
     try:
         sign_in_events = len(user_response_data['value'])
-    except:
+    except ValueError:
+        sign_in_events = 0
+    finally:
         sign_in_events = 0
 
     if sign_in_events > 0:
@@ -77,7 +78,7 @@ def get_azure_account_usage(output_format):
         print(upn)
 
         # Subquery to get Azure AD Login Activity
-        user_signins = get_azure_user_signins(aad_token, 50, upn)
+        user_signins = get_azure_user_signins(aad_token, upn)
         signin_qty = 0
         if user_signins is not None:
             signin_qty = user_signins.shape[0]
