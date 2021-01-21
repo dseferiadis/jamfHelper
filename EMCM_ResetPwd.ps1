@@ -5,7 +5,7 @@ $inputFile = $PSScriptRoot + "\" + "EMCM_Reset.csv"
 $outputFile = $PSScriptRoot + "\" + "EMCM_ResetResults.csv"
 
 # Flag to Manually Validate Change Actions - either 0 (No) or 1 (Yes)
-$confirmchanges = 1
+$confirmchanges = 0
 
 # Function to Validate CSV File Columns
 function Import-ValidCSV
