@@ -2,7 +2,7 @@
 # and create users that don't exist in both Azure AD and Canvas
 # or update users whose attributes have changed, and delete users 
 # no longer in the import list with a soft delete wait period where
-# accounts will be disabled for X days until deletion
+# accounts will be disabled for X days until actual deletion
 
 # Source CSV File
 $inputFile = $PSScriptRoot + "\" + "EMCM_Import.csv"
@@ -11,7 +11,7 @@ $Office365StudentTeacherUsers = $PSScriptRoot + "\" + "Office365StudentTeacherUs
 $Office365AllUsers = $PSScriptRoot + "\" + "Office365AllUsers.csv"
 
 # Flag to Manually Validate Change Actions - either 0 (No) or 1 (Yes)
-$confirmchanges = 1
+$confirmchanges = 0
 
 # Define days to wait to process deletion of account after account is not in import CSV
 $deletewaitdays = 30
@@ -20,66 +20,101 @@ $deletewaitdays = 30
 Get-Content $SettingsFile | foreach-object -begin {$h=@{}} -process { $k = [regex]::split($_,'='); if(($k[0].CompareTo("") -ne 0) -and ($k[0].StartsWith("[") -ne $True)) { $h.Add($k[0], $k[1]) } }
 $canvasToken = $h.Get_Item("canvastoken")
 
-# Check if Account Anchor Exists in Canvas
+function ParseErrorForResponseBody($Error) {
+    if ($PSVersionTable.PSVersion.Major -lt 6) {
+        if ($Error.Exception.Response) {  
+            Write-Host "HTTP Status: " $Error.Exception
+            $Reader = New-Object System.IO.StreamReader($Error.Exception.Response.GetResponseStream())
+            $Reader.BaseStream.Position = 0
+            $Reader.DiscardBufferedData()
+            $ResponseBody = $Reader.ReadToEnd()
+            if ($ResponseBody.StartsWith('{')) {
+                $ResponseBody = $ResponseBody | ConvertFrom-Json
+            }
+            return $ResponseBody
+        }
+    }
+    else {
+        return $Error.ErrorDetails.Message
+    }
+}
+
 function ExistsInCanvas($CanvasUsername){
     $canvasDomain = "https://emcm.instructure.com/api/v1"
     $accessToken = $canvasToken
     $headers = @{"Authorization"="Bearer "+$accessToken}  # build access token header
     $canvasUserUrl = "$canvasDomain/accounts/self/users?search_term=$CanvasUsername"
     
-    # Write-Host "Attempting API Call to:" $canvasUserUrl
+    # Write-Host "API Get to:" $canvasUserUrl
     try{
-        $response = Invoke-RestMethod -Method GET -uri $canvasUserUrl -header $headers
+        $response = Invoke-RestMethod -Method Get -uri $canvasUserUrl -header $headers
         if($response.login_id -eq $CanvasUsername){
+            # Write-Host "User found!"
             return $true
         } else {
+            # Write-Host "User not found!"
             return $false
         }
     } catch {
+        Write-Host "Unhandled Web Request Failure!"
+        ParseErrorForResponseBody($_)
         return $false
     }
 }
 
-# Create Canvas Anchor Account
 function CreateInCanvas($CanvasUsername){
     $canvasDomain = "https://emcm.instructure.com/api/v1"
     $accessToken = $canvasToken
     $headers = @{"Authorization"="Bearer "+$accessToken}  # build access token header
-    $canvasUserUrl = "$canvasDomain/accounts/self/users?search_term=$CanvasUsername"
+    $canvasUserUrl = "$canvasDomain/accounts/self/users?pseudonym[unique_id]=$CanvasUsername"
     
-    # Write-Host "Attempting API Call to:" $canvasUserUrl
+    # Write-Host "API Post to:" $canvasUserUrl
     try{
-        $response = Invoke-RestMethod -Method GET -uri $canvasUserUrl -header $headers
+        $response = Invoke-RestMethod -Method Post -uri $canvasUserUrl -header $headers -ContentType 'application/json; charset=utf-8'
         if($response.login_id -eq $CanvasUsername){
+            # Write-Host "User Creation Succeeded!"
             return $true
         } else {
+            Write-Host "User Creation Failed!"
             return $false
         }
     } catch {
+        Write-Host "Unhandled Web Request Failure!"
+        ParseErrorForResponseBody($_)
         return $false
     }
 }
 
 function DeleteInCanvas($CanvasUsername){
     $canvasDomain = "https://emcm.instructure.com/api/v1"
-    $accessToken = "19089~oe2Z8IoLu5Oi8FjWaikdqiYSI9r1hfpEG58XSBvhhu5Hv9v2eMWG5aQLezbTcvFX"
+    $accessToken = $canvasToken
     $headers = @{"Authorization"="Bearer "+$accessToken}  # build access token header
     $canvasUserUrl = "$canvasDomain/accounts/self/users?search_term=$CanvasUsername"
     
-    Write-Host "Attempting API Call to:" $canvasUserUrl
+    # Write-Host "API Delete to:" $canvasUserUrl
     try{
-        $response = Invoke-RestMethod -Method GET -uri $canvasUserUrl -header $headers
+        $response = Invoke-RestMethod -Method Get -uri $canvasUserUrl -header $headers
         if($response.login_id -eq $CanvasUsername){
             # User Exists - Get id to process next delete call
             $canvasuserid = $response.id
             $canvasUserUrl = "$canvasDomain/accounts/self/users/$canvasuserid"
             Write-Host $canvasUserUrl
             $response = Invoke-RestMethod -Method DELETE -uri $canvasUserUrl -header $headers
-            return $true
+            if($response.user.name -eq $CanvasUsername){
+                # Write-Host "Deletion Successful"
+                return $true
+            } else {
+                Write-Host "Deletion Failed!"
+                Write-Host $response.result
+                return $false
+            }
         } else {
+            Write-Host "UserID not Found!"
             return $false
         }
     } catch {
+        Write-Host "Unhandled Web Request Failure!"
+        ParseErrorForResponseBody($_)
         return $false
     }
 }
@@ -433,9 +468,9 @@ foreach($User in $Users){
     if(ExistsInCanvas $UserPrincipalName){
         Write-Host "     User Anchor Exists in Canvas"
     } else {
-        Write-Host "     Plaseholder to Creating User Anchor in Canvas"
-        # if($confirmchanges -eq 1){ Read-Host -Prompt "Press any key to continue or CTRL-C to quit" }
-        # CreateInCanvas $UserPrincipalName
+        Write-Host "     Creating User Anchor in Canvas"
+        if($confirmchanges -eq 1){ Read-Host -Prompt "Press any key to continue or CTRL-C to quit" }
+        CreateInCanvas $UserPrincipalName
     }
 }
 

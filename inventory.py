@@ -228,13 +228,11 @@ def get_assigned_user(serial, current_value):
 # Update Notes Object
 def update_notes(udid, notes_json):
     notes_json_withkey = {'notes': json.dumps(notes_json)}
-    input("Press enter to update notes...")
     target_url = 'https://' + JamfSchoolEndpoint + '/devices/' + udid + '/details'
     response = requests.post(target_url, notes_json_withkey,
                              auth=HTTPBasicAuth(JamfSchoolUid, JAMF_SCHOOL_PWD))
     if not response.status_code == 200:
         print("Error Updating: ", response)
-        input("Press enter to continue...")
 
 
 # Verify JSON Object
