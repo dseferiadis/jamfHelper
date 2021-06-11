@@ -544,8 +544,6 @@ def get_inventory(output_format):
         # Determine if Inventory is Needed
         inventory_needed = get_inventory_needed(days_since_last_inventory)
 
-        if row["name"] == 'EMCMMAC001':
-            print('troubleshoot!')
         # Update Metadata DataFrame with Reference Data
         metadata_row = [[row["name"], is_virtual, naming_standard["NameInConvention"], device_update_needed,
                          device_unique_name, days_since_checkin, days_since_last_inventory, location_tier_0,
