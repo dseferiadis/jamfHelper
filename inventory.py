@@ -14,6 +14,7 @@ JamfSchoolUid = config.JamfSchoolUid
 JAMF_SCHOOL_PWD = os.getenv('JAMF_SCHOOL_PWD')
 JamfSchoolEndpoint = config.JamfSchoolEndpoint
 CheckInDays = config.CheckInDays
+InventoryDays = config.InventoryDays
 OutputCsvFilename = config.OutputCsvFilename
 AssignmentCsv = config.AssignmentCsv
 OrgInitials = config.OrgInitials
@@ -171,9 +172,32 @@ def naming_convention(name, isvirtual, modeltype):
         return result
     elif modeltype == "iPad":
         min_range = 1
-        max_range = 7999
+        max_range = 6999
         device_type = "iPad"
         prefix = "I"
+        regex = OrgInitials + prefix + '(\\d{4})'
+        search_result = re.search(regex, name, re.IGNORECASE)
+        if search_result:
+            device_num = int(search_result.group(1))
+            if min_range <= device_num <= max_range:
+                result["NameInConvention"] = "True"
+                result["NameInConventionReason"] = "Base name is in alignment and number is between " + \
+                                                   str(min_range) + " and " + str(max_range)
+            else:
+                result["NameInConvention"] = "False"
+                result["NameInConventionReason"] = "Base name is in alignment but number is not between " + \
+                                                   str(min_range) + " and " + str(max_range)
+            return result
+        else:
+            result["NameInConvention"] = "False"
+            result["NameInConventionReason"] = "Base name is not in alignment for " + device_type + ": " + \
+                                               OrgInitials + prefix + "(" + str(min_range) + "-" + str(max_range) + ")"
+        return result
+    elif modeltype == "iMac":
+        min_range = 7000
+        max_range = 7999
+        device_type = "iMac"
+        prefix = "IM"
         regex = OrgInitials + prefix + '(\\d{4})'
         search_result = re.search(regex, name, re.IGNORECASE)
         if search_result:
@@ -398,19 +422,24 @@ def get_days_since_checkin_bucket(days):
         return "2-7 days"
     elif days <= 45:
         return "8-45 days"
+    elif days <= 180:
+        return "46-180 days"
     else:
-        return ">45 days"
+        return ">180 days"
 
 
 def get_inventory_needed(days):
     # Report if inventory is due for devices
-    if days > CheckInDays:
+    if days > InventoryDays:
         return True
     else:
         return False
 
+####################
+# Start Main Logic #
+####################
 
-# Start Main Logic
+
 def get_inventory(output_format):
     print("Starting Jamf Management")
     print("Current Working Directory", pathlib.Path().absolute())
@@ -522,6 +551,7 @@ def get_inventory(output_format):
                          json_geo_location["zip"], json_geo_location["hostname"], islost["IsLost"],
                          islost["IsLostReason"], days_since_checkin_bucket, device_value, inventory_needed,
                          naming_standard["NameInConventionReason"]]]
+
         df_metadata_row = pd.DataFrame(metadata_row, columns=df_column_names)
         df_metadata = df_metadata.append(df_metadata_row)
 

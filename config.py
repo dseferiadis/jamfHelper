@@ -6,6 +6,7 @@
 JamfSchoolUid = "79982428"
 JamfSchoolEndpoint = "ellismarsalis.jamfcloud.com/api"
 CheckInDays = 45
+InventoryDays = 180
 OutputCsvFilename = "jamf_inventory.csv"
 AssignmentCsv = "assignment.csv"
 OrgInitials = "EMCM"
@@ -27,6 +28,7 @@ DeviceValues = {
     "MacBook10,1": "659",
     "MacBookPro14,1": "799",
     "MacBookPro16,1": "2100",
+    "iMac19,2": "1299",
     "MacPro7,1": "5500",
     "Parallels16,1": "0"
 }
