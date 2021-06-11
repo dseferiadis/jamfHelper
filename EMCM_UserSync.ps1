@@ -11,7 +11,7 @@ $Office365StudentTeacherUsers = $PSScriptRoot + "\" + "Office365StudentTeacherUs
 $Office365AllUsers = $PSScriptRoot + "\" + "Office365AllUsers.csv"
 
 # Flag to Manually Validate Change Actions - either 0 (No) or 1 (Yes)
-$confirmchanges = 0
+$confirmchanges = 1
 
 # Define days to wait to process deletion of account after account is not in import CSV
 $deletewaitdays = 30
@@ -56,7 +56,7 @@ function ExistsInCanvas($CanvasUsername){
             return $false
         }
     } catch {
-        Write-Host "Unhandled Web Request Failure!"
+        Write-Host "ExistsInCanvas Unhandled Web Request Failure!"
         ParseErrorForResponseBody($_)
         return $false
     }
@@ -79,7 +79,7 @@ function CreateInCanvas($CanvasUsername){
             return $false
         }
     } catch {
-        Write-Host "Unhandled Web Request Failure!"
+        Write-Host "CreateInCanvas Unhandled Web Request Failure!"
         ParseErrorForResponseBody($_)
         return $false
     }
@@ -113,7 +113,7 @@ function DeleteInCanvas($CanvasUsername){
             return $false
         }
     } catch {
-        Write-Host "Unhandled Web Request Failure!"
+        Write-Host "DeleteInCanvas Unhandled Web Request Failure!"
         ParseErrorForResponseBody($_)
         return $false
     }
@@ -222,6 +222,8 @@ function CheckPhoneSyntax($inputFile)
 
 # Define Required Columns
 [string[]]$requiredColumns = "FirstName","LastName","PreferredFirstName","PersonalEmail","MoblePhone","Role"
+
+# Import and Validate Source CSV File
 Write-Host "Importing CSV of Target User List:" $inputFile
 $error.clear()
 try { 
@@ -230,6 +232,7 @@ try {
 catch { 
     "Failed to Import CSV - Malformed File"
     Write-Host $error
+    exit
 }
 if (!$error) { 
     "CSV Syntax is Valid" 
@@ -409,7 +412,7 @@ foreach($User in $Users){
     # If user is an active user reset the City field to blank, which is used as a soft delete placeholder
     $aad_City = Get-MsolUser -UserPrincipalName $UserPrincipalName | Select-Object City
     if ($aad_City.City -cne $null){
-        Write-Host "     Updating City from: " $aad_City.City " to: "
+        Write-Host "     Updating City from: " $aad_City.City " to: (Using City Field for Soft Deletes - User was un-deleted)"
         if($confirmchanges -eq 1){ Read-Host -Prompt "Press any key to continue or CTRL-C to quit" }
         Set-MsolUser -UserPrincipalName $UserPrincipalName -City $null
     } else {
@@ -465,6 +468,7 @@ foreach($User in $Users){
     }
 
     # Check if User Anchor Exists in Canvas
+    Write-Host "     Checking if User Anchor Exists in Canvas"
     if(ExistsInCanvas $UserPrincipalName){
         Write-Host "     User Anchor Exists in Canvas"
     } else {
